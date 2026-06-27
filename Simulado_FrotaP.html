@@ -1,0 +1,697 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Frota P - 50 Questões Revisadas</title>
+    <style>
+        :root {
+            --primary: #004a99;
+            --bg: #f0f2f5;
+            --white: #ffffff;
+            --success: #28a745;
+            --error: #dc3545;
+            --text: #333;
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text); }
+        .container { max-width: 900px; margin: 0 auto; background: var(--white); padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid var(--primary); padding-bottom: 10px; }
+        .setup-box { background: #e9ecef; padding: 20px; border-radius: 10px; text-align: center; }
+        .btn { padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
+        .btn-start { background: var(--primary); color: white; margin-top: 15px; }
+        .btn-start:hover { background: #003366; }
+        .quiz-area { display: none; }
+        .question-card { background: #fff; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 8px; border-left: 5px solid var(--primary); }
+        .options { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .opt-btn { background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 5px; cursor: pointer; text-align: left; }
+        .opt-btn:hover { background: #e2e6ea; }
+        .opt-btn.selected { background: #004a99; color: white; border-color: #004a99; }
+        .results { display: none; }
+        .correction-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .correct-text { color: var(--success); font-weight: bold; }
+        .wrong-text { color: var(--error); font-weight: bold; text-decoration: line-through; }
+        .expl { background: #fdfbbe; padding: 10px; border-radius: 5px; font-size: 14px; margin-top: 10px; border-left: 3px solid #f1c40f; }
+        @media print { .btn, .setup-box { display: none; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Simulador Técnico Frota P</h1>
+        <p>Questões revisadas: Frota P, CVS, operação e história da Linha 5-Lilás</p>
+    </header>
+
+    <div id="setup" class="setup-box">
+        <h3>Selecione o Nível do Simulado</h3>
+        <select id="diff-select" style="padding: 10px; font-size: 16px; width: 250px;">
+            <option value="15">Fácil (15 Questões)</option>
+            <option value="30">Médio (30 Questões)</option>
+            <option value="50">Difícil (50 Questões)</option>
+        </select><br>
+        <button class="btn btn-start" onclick="startQuiz()">INICIAR AGORA</button>
+    </div>
+
+    <div id="quiz" class="quiz-area">
+        <div id="questions-list"></div>
+        <button class="btn btn-start" style="width:100%;" onclick="finishQuiz()">FINALIZAR E CORRIGIR</button>
+    </div>
+
+    <div id="results" class="results">
+        <div id="score-summary" style="text-align:center; font-size: 24px; margin-bottom: 30px;"></div>
+        <div id="details"></div>
+        <button class="btn btn-start" onclick="location.reload()">REFAZER SIMULADO</button>
+    </div>
+</div>
+
+<script>
+    const db = [
+    {
+        "q": "Qual é a velocidade máxima permitida na modalidade MANUAL na Frota P?",
+        "options": [
+            "20 km/h",
+            "30 km/h",
+            "50 km/h",
+            "80 km/h"
+        ],
+        "correct": 1,
+        "explanation": "Na condução manual, a velocidade é limitada a 30 km/h, respeitando as condições de segurança e sinalização."
+    },
+    {
+        "q": "Após ligar a CEG, em quanto tempo aproximadamente as IHMs ficam prontas para operação?",
+        "options": [
+            "30 segundos",
+            "1 minuto",
+            "1,5 minuto",
+            "5 minutos"
+        ],
+        "correct": 2,
+        "explanation": "As IHMs levam cerca de 1,5 minuto para inicializar e permitir a visualização/comando dos sistemas."
+    },
+    {
+        "q": "No sentido oeste-leste, como é feita a numeração das portas?",
+        "options": [
+            "Da esquerda para a direita",
+            "Da direita para a esquerda",
+            "De forma aleatória",
+            "Do último carro para o primeiro"
+        ],
+        "correct": 1,
+        "explanation": "A numeração segue da direita para a esquerda no sentido de progressão oeste-leste."
+    },
+    {
+        "q": "No TCMS/COSMOS, o que normalmente indica um ícone com fundo vermelho?",
+        "options": [
+            "Equipamento em espera",
+            "Operação normal",
+            "Falha ativa ou condição crítica",
+            "Equipamento isolado"
+        ],
+        "correct": 2,
+        "explanation": "A cor vermelha chama atenção para falha ativa ou condição crítica que exige avaliação do operador."
+    },
+    {
+        "q": "O que é o reciclo de portas?",
+        "options": [
+            "Reinicialização total do trem",
+            "Nova tentativa de fechamento após detecção de obstáculo",
+            "Limpeza automática dos trilhos",
+            "Abertura forçada de todas as portas"
+        ],
+        "correct": 1,
+        "explanation": "O reciclo ocorre quando o sistema tenta fechar novamente após detectar obstrução ou falha no fechamento."
+    },
+    {
+        "q": "O que significa FFA no sistema de freio?",
+        "options": [
+            "Freio Funcional Ativo",
+            "Falta de Ar",
+            "Freio falha Aplicação",
+            "Freio de Apoio"
+        ],
+        "correct": 2,
+        "explanation": "FFA está associado a falha na aplicação do freio, quando a pressão/comando esperado não é atingido corretamente."
+    },
+    {
+        "q": "Quais são as posições da chave de modalidade CBTC citadas no simulador?",
+        "options": [
+            "ON e OFF",
+            "AUTO e MANUAL",
+            "OFF, AM e MCS",
+            "ATO e ATP apenas"
+        ],
+        "correct": 2,
+        "explanation": "As posições são OFF, AM e MCS, relacionadas aos modos disponíveis de operação/sinalização."
+    },
+    {
+        "q": "A mudança de modalidade com o trem em movimento pode causar qual consequência?",
+        "options": [
+            "Nenhuma consequência",
+            "Aumento de velocidade",
+            "Aplicação de emergência",
+            "Somente aviso visual"
+        ],
+        "correct": 2,
+        "explanation": "A troca indevida de modalidade em movimento pode provocar emergência, por segurança."
+    },
+    {
+        "q": "O que compõe a odometria do CBTC?",
+        "options": [
+            "GPS e câmera",
+            "Balizas e sensores de velocidade/eixo",
+            "Apenas comando do operador",
+            "Rádio de comunicação"
+        ],
+        "correct": 1,
+        "explanation": "O sistema usa referências de via, como balizas, e sensores para calcular posição e deslocamento do trem."
+    },
+    {
+        "q": "Qual é a tensão nominal da rede aérea da Linha 5-Lilás?",
+        "options": [
+            "750 Vcc",
+            "1500 Vcc",
+            "3000 Vcc",
+            "25 kVca"
+        ],
+        "correct": 1,
+        "explanation": "A alimentação da Linha 5-Lilás é por rede aérea em 1500 Vcc."
+    },
+    {
+        "q": "Qual é a função do botão de soco de emergência?",
+        "options": [
+            "Acionar rádio",
+            "Abrir portas automaticamente",
+            "Cortar tração e aplicar frenagem de emergência",
+            "Reiniciar o trem"
+        ],
+        "correct": 2,
+        "explanation": "O soco de emergência atua na segurança do trem, cortando tração e aplicando freio de emergência."
+    },
+    {
+        "q": "Qual é a função do dispositivo Homem Morto?",
+        "options": [
+            "Detectar fumaça",
+            "Monitorar a atuação/atenção do operador",
+            "Medir velocidade do trem",
+            "Abrir portas na plataforma"
+        ],
+        "correct": 1,
+        "explanation": "O sistema verifica se o operador mantém atuação regular, evitando condução sem vigilância."
+    },
+    {
+        "q": "Onde ficam os disjuntores principais acessíveis ao operador no carro A?",
+        "options": [
+            "No teto do trem",
+            "No estrado",
+            "No painel ao lado do console",
+            "Dentro do salão de passageiros"
+        ],
+        "correct": 2,
+        "explanation": "O painel de disjuntores acessível ao operador fica na cabine, ao lado da posição de condução."
+    },
+    {
+        "q": "O que significa FFE no sistema de freio?",
+        "options": [
+            "Freio de Força Especial",
+            "Falha de Freio",
+            "Fim de Eixo",
+            "Falha de Energia"
+        ],
+        "correct": 1,
+        "explanation": "FFE indica falha no alívio do freio, ou seja, o freio não aliviou como deveria."
+    },
+    {
+        "q": "O que é o Park Brake?",
+        "options": [
+            "Freio de serviço",
+            "Freio de emergência",
+            "Freio de estacionamento",
+            "Freio magnético"
+        ],
+        "correct": 2,
+        "explanation": "Park Brake é o freio de estacionamento, usado para manter o trem imobilizado."
+    },
+    {
+        "q": "Quantas unidades de ar-condicionado existem em cada carro da Frota P?",
+        "options": [
+            "1",
+            "2",
+            "3",
+            "4"
+        ],
+        "correct": 1,
+        "explanation": "Cada carro possui duas unidades de ar-condicionado."
+    },
+    {
+        "q": "No TCMS, o que normalmente indica a cor ciano?",
+        "options": [
+            "Falha crítica",
+            "Equipamento isolado/desabilitado",
+            "Funcionamento normal",
+            "Emergência aplicada"
+        ],
+        "correct": 1,
+        "explanation": "A cor ciano é usada para indicar equipamento isolado ou desabilitado."
+    },
+    {
+        "q": "Qual é a função do Conversor Auxiliar (CVS)?",
+        "options": [
+            "Tracionar o trem",
+            "Alimentar sistemas auxiliares, como iluminação e climatização",
+            "Resfriar o salão sozinho",
+            "Comandar abertura de portas diretamente"
+        ],
+        "correct": 1,
+        "explanation": "O CVS converte a energia principal para alimentação dos sistemas auxiliares do trem."
+    },
+    {
+        "q": "Na Frota P, em quais carros ficam os CVS principais citados no treinamento?",
+        "options": [
+            "Carros 1 e 6",
+            "Carros 2 e 5",
+            "Carros 3 e 4",
+            "Em todos os carros"
+        ],
+        "correct": 1,
+        "explanation": "No modelo estudado, os CVS ficam nos carros 2 e 5, considerados os carros principais de alimentação auxiliar."
+    },
+    {
+        "q": "Como é a alimentação dos CVS entre os carros?",
+        "options": [
+            "Cada CVS alimenta apenas o próprio carro",
+            "É cruzada, alimentando grupos de carros diferentes",
+            "Somente o carro 1 alimenta todos",
+            "Somente o carro 6 alimenta todos"
+        ],
+        "correct": 1,
+        "explanation": "A alimentação é cruzada: os CVS atendem grupos de carros, aumentando a disponibilidade dos sistemas auxiliares."
+    },
+    {
+        "q": "Quais carros são alimentados pelo CVS do carro 2 no estudo apresentado?",
+        "options": [
+            "Carros 1, 2 e 3",
+            "Carros 2, 3 e 4",
+            "Carros 3, 4 e 5",
+            "Carros 4, 5 e 6"
+        ],
+        "correct": 0,
+        "explanation": "O CVS do carro 2 alimenta o bloco dos carros 1 ao 3."
+    },
+    {
+        "q": "Quais carros são alimentados pelo CVS do carro 5 no estudo apresentado?",
+        "options": [
+            "Carros 1, 2 e 3",
+            "Carros 2, 3 e 4",
+            "Carros 4, 5 e 6",
+            "Apenas carros 5 e 6"
+        ],
+        "correct": 2,
+        "explanation": "O CVS do carro 5 alimenta o bloco dos carros 3 ao 6, conforme a lógica cruzada estudada."
+    },
+    {
+        "q": "Onde ficam as baterias principais citadas no estudo da Frota P?",
+        "options": [
+            "Carros 1 e 6",
+            "Carros 2 e 5",
+            "Carros 3 e 4",
+            "Somente no carro 1"
+        ],
+        "correct": 1,
+        "explanation": "As baterias foram estudadas como localizadas nos carros 2 e 5."
+    },
+    {
+        "q": "Em quais carros ficam os compressores citados no estudo?",
+        "options": [
+            "1, 3, 4 e 6",
+            "2 e 5",
+            "Apenas 1 e 6",
+            "Todos os carros"
+        ],
+        "correct": 0,
+        "explanation": "No bloco estudado, os compressores estão nos carros 1, 3, 4 e 6."
+    },
+    {
+        "q": "O que é o HSCB?",
+        "options": [
+            "Um tipo de freio",
+            "Disjuntor de alta velocidade da tração",
+            "Rádio do trem",
+            "Sensor de porta"
+        ],
+        "correct": 1,
+        "explanation": "HSCB significa High Speed Circuit Breaker, um disjuntor de proteção do circuito de alta potência."
+    },
+    {
+        "q": "Quantos motores de tração existem por truque motor?",
+        "options": [
+            "1",
+            "2",
+            "3",
+            "4"
+        ],
+        "correct": 1,
+        "explanation": "Cada truque motor possui dois motores de tração."
+    },
+    {
+        "q": "O que é o intercom na comunicação com passageiros?",
+        "options": [
+            "Painel de energia urbana",
+            "Unidade de emergência do passageiro/interfonia",
+            "Porta elétrica universal",
+            "Programa de evacuação"
+        ],
+        "correct": 1,
+        "explanation": "O intercom permite comunicação do passageiro com a cabine em situação de necessidade."
+    },
+    {
+        "q": "O que significa TCMS?",
+        "options": [
+            "Trem Com Muita Segurança",
+            "Train Control and Management System",
+            "Tração e Comando Manual Seguro",
+            "Terminal de Controle Metroviário"
+        ],
+        "correct": 1,
+        "explanation": "TCMS é o sistema de controle e gerenciamento do trem, responsável por monitorar vários equipamentos."
+    },
+    {
+        "q": "Qual é a função das baterias do trem?",
+        "options": [
+            "Mover o trem em operação normal",
+            "Alimentar sistemas essenciais quando não há rede aérea disponível",
+            "Ligar somente o ar-condicionado",
+            "Substituir a rede aérea"
+        ],
+        "correct": 1,
+        "explanation": "As baterias sustentam circuitos essenciais e de segurança em falta ou perda de alimentação principal."
+    },
+    {
+        "q": "O que é o engate Scharfenberg?",
+        "options": [
+            "Um tipo de freio",
+            "Engate automático com união mecânica e elétrica",
+            "Peça interna do motor",
+            "Nome do fabricante do trem"
+        ],
+        "correct": 1,
+        "explanation": "É um engate automático usado para acoplamento do trem, com conexão mecânica e elétrica."
+    },
+    {
+        "q": "Qual é a pressão normal aproximada da Tubulação Principal (TP)?",
+        "options": [
+            "5 bar",
+            "8,5 a 10 bar",
+            "2 bar",
+            "15 bar"
+        ],
+        "correct": 1,
+        "explanation": "O E.P trabalha aproximadamente na faixa de 8,5 a 10 bar."
+    },
+    {
+        "q": "O que pode ocorrer se a pressão da TP cair abaixo de 6 bar?",
+        "options": [
+            "O trem acelera",
+            "Pode ocorrer aplicação de emergência",
+            "Nada acontece",
+            "O ar-condicionado aumenta"
+        ],
+        "correct": 1,
+        "explanation": "Queda severa de pressão compromete o sistema pneumático e pode levar à emergência."
+    },
+    {
+        "q": "O que significa nível de degradação no CBTC?",
+        "options": [
+            "Idade do trem",
+            "Perda ou limitação de funcionalidades da sinalização",
+            "Sujeira na via",
+            "Quantidade de passageiros"
+        ],
+        "correct": 1,
+        "explanation": "Indica condição degradada do sistema de sinalização, podendo limitar modos de condução."
+    },
+    {
+        "q": "O que é o modo RM?",
+        "options": [
+            "Rádio Móvel",
+            "Restricted Manual",
+            "Rotina de Manutenção",
+            "Rapidez Máxima"
+        ],
+        "correct": 1,
+        "explanation": "RM significa Restricted Manual, ou Manual Restrito, usado em condições específicas de operação."
+    },
+    {
+        "q": "Quantos carros formam uma composição da Frota P?",
+        "options": [
+            "4",
+            "6",
+            "8",
+            "10"
+        ],
+        "correct": 1,
+        "explanation": "A composição padrão da Frota P possui seis carros."
+    },
+    {
+        "q": "O que é a banda de tolerância no CBTC?",
+        "options": [
+            "Limite de passageiros",
+            "Margem de segurança/precisão para parada",
+            "Volume do rádio",
+            "Tempo de intervalo comercial"
+        ],
+        "correct": 1,
+        "explanation": "É uma margem usada para controlar a precisão da parada e garantir segurança operacional."
+    },
+    {
+        "q": "Qual é a função do sistema de detecção de incêndio?",
+        "options": [
+            "Substituir extintores",
+            "Detectar fumaça/incêndio e alertar o operador pelo sistema",
+            "Acionar mangueiras automaticamente",
+            "Apenas iluminar o salão"
+        ],
+        "correct": 1,
+        "explanation": "Sensores monitoram indícios de incêndio e enviam alarme ao sistema de controle."
+    },
+    {
+        "q": "O que indica a cor verde nos ícones do TCMS?",
+        "options": [
+            "Falha",
+            "Equipamento em funcionamento normal",
+            "Equipamento isolado",
+            "Emergência"
+        ],
+        "correct": 1,
+        "explanation": "Verde indica operação normal do equipamento monitorado."
+    },
+    {
+        "q": "O que é um comando de by-pass?",
+        "options": [
+            "Sistema novo de tração",
+            "Recurso que anula temporariamente uma proteção para situação controlada de socorro",
+            "Aumento automático de velocidade",
+            "Desligamento total do trem"
+        ],
+        "correct": 1,
+        "explanation": "By-pass é usado em situações específicas e controladas, seguindo procedimento, para permitir movimentação ou socorro."
+    },
+    {
+        "q": "O que é o ATC?",
+        "options": [
+            "Ar-condicionado do trem",
+            "Automatic Train Control",
+            "Apoio Técnico de Campo",
+            "Apenas Tração Controlada"
+        ],
+        "correct": 1,
+        "explanation": "ATC é o Controle Automático de Trem, associado à proteção e supervisão da circulação."
+    },
+    {
+        "q": "Qual é a função da válvula de isolamento de freio?",
+        "options": [
+            "Aumentar o freio do trem inteiro",
+            "Isolar o freio pneumático de um truque em caso de necessidade",
+            "Limpar o ar do compressor",
+            "Controlar o pantógrafo"
+        ],
+        "correct": 1,
+        "explanation": "Permite isolar um freio específico quando há falha, conforme procedimento operacional."
+    },
+    {
+        "q": "Qual é a função do pantógrafo?",
+        "options": [
+            "Frear o trem",
+            "Coletar energia da rede aérea",
+            "Limpar o teto",
+            "Medir altura do túnel"
+        ],
+        "correct": 1,
+        "explanation": "O pantógrafo capta energia elétrica da rede aérea para alimentar o trem."
+    },
+    {
+        "q": "O que é o inversor de tração?",
+        "options": [
+            "Equipamento que muda o sentido da linha",
+            "Conversor que alimenta/controla os motores de tração",
+            "Sistema que desliga o salão",
+            "Compressor auxiliar"
+        ],
+        "correct": 1,
+        "explanation": "O inversor converte e controla a energia enviada aos motores de tração."
+    },
+    {
+        "q": "Quando começou a operação comercial do primeiro trecho da Linha 5-Lilás?",
+        "options": [
+            "20 de outubro de 2002",
+            "12 de fevereiro de 2014",
+            "4 de agosto de 2018",
+            "29 de dezembro de 2021"
+        ],
+        "correct": 0,
+        "explanation": "O primeiro trecho da Linha 5-Lilás, entre Capão Redondo e Largo Treze, iniciou operação comercial em 20/10/2002."
+    },
+    {
+        "q": "Qual foi o primeiro trecho operado da Linha 5-Lilás?",
+        "options": [
+            "Capão Redondo a Largo Treze",
+            "Brooklin a Chácara Klabin",
+            "Moema a AACD-Servidor",
+            "Santo Amaro a Chácara Klabin"
+        ],
+        "correct": 0,
+        "explanation": "A linha começou operando o trecho Capão Redondo–Largo Treze, com seis estações."
+    },
+    {
+        "q": "Qual estação marcou a primeira expansão após o trecho inicial Capão Redondo–Largo Treze?",
+        "options": [
+            "Adolfo Pinheiro",
+            "Moema",
+            "Eucaliptos",
+            "Campo Belo"
+        ],
+        "correct": 0,
+        "explanation": "A Estação Adolfo Pinheiro foi a primeira expansão após o trecho inicial da Linha 5."
+    },
+    {
+        "q": "Em que ano a ViaMobilidade assumiu a operação da Linha 5-Lilás?",
+        "options": [
+            "2002",
+            "2014",
+            "2018",
+            "2021"
+        ],
+        "correct": 2,
+        "explanation": "A ViaMobilidade assumiu a operação da Linha 5-Lilás em 2018."
+    },
+    {
+        "q": "Atualmente, quais são os terminais da Linha 5-Lilás em operação?",
+        "options": [
+            "Capão Redondo e Chácara Klabin",
+            "Largo Treze e Moema",
+            "Santo Amaro e Brooklin",
+            "Campo Limpo e AACD-Servidor"
+        ],
+        "correct": 0,
+        "explanation": "A Linha 5-Lilás liga Capão Redondo à Chácara Klabin."
+    },
+    {
+        "q": "Quantas estações a Linha 5-Lilás possui em operação, segundo informações institucionais recentes?",
+        "options": [
+            "6",
+            "12",
+            "17",
+            "23"
+        ],
+        "correct": 2,
+        "explanation": "A Linha 5-Lilás possui 17 estações em operação."
+    },
+    {
+        "q": "Qual integração importante ocorre na Estação Santo Amaro da Linha 5-Lilás?",
+        "options": [
+            "Linha 9-Esmeralda",
+            "Linha 1-Azul",
+            "Linha 2-Verde",
+            "Linha 15-Prata"
+        ],
+        "correct": 0,
+        "explanation": "Santo Amaro permite integração com a Linha 9-Esmeralda."
+    }
+];
+    let activeQuestions = [];
+    let answers = [];
+
+    function startQuiz() {
+        const qty = parseInt(document.getElementById('diff-select').value);
+        activeQuestions = db.sort(() => 0.5 - Math.random()).slice(0, qty);
+        answers = new Array(qty).fill(null);
+
+        const list = document.getElementById('questions-list');
+        list.innerHTML = '';
+        
+        activeQuestions.forEach((q, i) => {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.innerHTML = `
+                <p><strong>Questão ${i+1}:</strong> ${q.q}</p>
+                <div class="options" id="options-${i}">
+                    ${q.options.map((opt, idx) => `
+                        <div class="opt-btn" onclick="selectOption(${i}, ${idx})">${opt}</div>
+                    `).join('')}
+                </div>
+            `;
+            list.appendChild(card);
+        });
+
+        document.getElementById('setup').style.display = 'none';
+        document.getElementById('quiz').style.display = 'block';
+        window.scrollTo(0,0);
+    }
+
+    function selectOption(qIdx, optIdx) {
+        answers[qIdx] = optIdx;
+        const btns = document.getElementById(`options-${qIdx}`).querySelectorAll('.opt-btn');
+        btns.forEach(b => b.classList.remove('selected'));
+        btns[optIdx].classList.add('selected');
+    }
+
+    function finishQuiz() {
+        if(answers.includes(null)) {
+            if(!confirm("Você não respondeu todas as questões. Deseja finalizar assim mesmo?")) return;
+        }
+
+        let score = 0;
+        const details = document.getElementById('details');
+        details.innerHTML = '<h2>Correção:</h2>';
+
+        activeQuestions.forEach((q, i) => {
+            const isCorrect = answers[i] === q.correct;
+            if(isCorrect) score++;
+
+            const div = document.createElement('div');
+            div.className = 'correction-item';
+            div.innerHTML = `
+                <p><strong>${i+1}. ${q.q}</strong></p>
+                <p>Sua resposta: <span class="${isCorrect ? 'correct-text' : 'wrong-text'}">
+                    ${answers[i] !== null ? q.options[answers[i]] : 'Em branco'}
+                </span></p>
+                ${!isCorrect ? `<p>Resposta correta: <span class="correct-text">${q.options[q.correct]}</span></p>` : ''}
+                <div class="expl"><strong>Explicação:</strong> ${q.explanation}</div>
+            `;
+            details.appendChild(div);
+        });
+
+        const percent = Math.round((score/activeQuestions.length)*100);
+        document.getElementById('score-summary').innerHTML = `
+            Você acertou <strong>${score}</strong> de <strong>${activeQuestions.length}</strong> questões.<br>
+            Aproveitamento: <strong>${percent}%</strong>
+        `;
+
+        document.getElementById('quiz').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+        window.scrollTo(0,0);
+    }
+</script>
+
+</body>
+</html>
